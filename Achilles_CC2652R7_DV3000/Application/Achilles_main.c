@@ -5779,9 +5779,6 @@ static void AchillesPB_bootManagerCheck(uint_least8_t revertIo,
     uint32_t sleepDuration = 5000 * (1000/Clock_tickPeriod);
     uint32_t sleepInterval = 50 * (1000/Clock_tickPeriod);
 
-//    uint32_t revertIoInit = GPIO_read(revertIo);
-//    uint32_t eraseIoInit = GPIO_read(eraseIo);
-
     uint32_t revertIoInit = 1;
     uint32_t eraseIoInit = 1;
 
