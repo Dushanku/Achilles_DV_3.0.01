@@ -372,11 +372,11 @@
 
                ; Task code function pointers for each task code block, one word for each task
                pFwTaskInitializeFuncTable:
-009f ---- 00b7                         dw          #achButton/initialize
+009f ---- 00b9                         dw          #achButton/initialize
                pFwTaskExecuteFuncTable:
-00a0 ---- 00ba                         dw          #achButton/execute
+00a0 ---- 00bc                         dw          #achButton/execute
                pFwTaskTerminateFuncTable:
-00a1 ---- 0111                         dw          #achButton/terminate
+00a1 ---- 010c                         dw          #achButton/terminate
 
                ; Run-time logging log requests and masks, one bit for each struct, one word for each task
                pRtlTaskLogReqTable:
@@ -413,22 +413,24 @@
                achButton/cfg/pAuxioASensorOutput:
 00ae ---- 0019                         dw          #25
 00af ---- 0018                         dw          #24
+00b0 ---- 001a                         dw          #26
                achButton/cfg/thresholdtwo:
-00b0 ---- 0a8c                         dw          #2700
+00b1 ---- 0a8c                         dw          #2700
                achButton/cfg/tresholdone:
-00b1 ---- 05dc                         dw          #1500
+00b2 ---- 05dc                         dw          #1500
                achButton/input:
                achButton/output:
                achButton/output/adcValue:
-00b2 ---- 0000                         dw          #0
-               achButton/output/pAdcValue:
 00b3 ---- 0000                         dw          #0
+               achButton/output/pAdcValue:
 00b4 ---- 0000                         dw          #0
+00b5 ---- 0000                         dw          #0
+00b6 ---- 0000                         dw          #0
                achButton/state:
                achButton/state/adcValue:
-00b5 ---- 0000                         dw          #0
+00b7 ---- 0000                         dw          #0
                achButton/state/buttonState:
-00b6 ---- 0000                         dw          #0
+00b8 ---- 0000                         dw          #0
                .segment end "Task: achButton"
 
 
@@ -436,10 +438,10 @@
                achButton/initialize:
                ;? //adcSelectGpioInput(AUXIO_A_ADC_INPUT);
                ;? fwScheduleTask(1);
-00b7 ---- 0001                         ld          R0, #1
-00b8 ---- 0c9e                         st          R0, [#(pFwTaskExecuteScheduleTable + 0)]
+00b9 ---- 0001                         ld          R0, #1
+00ba ---- 0c9e                         st          R0, [#(pFwTaskExecuteScheduleTable + 0)]
                achButton/initializeDone:
-00b9 ---- adb7                         rts
+00bb ---- adb7                         rts
 
 
 
@@ -447,134 +449,124 @@
                achButton/execute:
                ;? // Enable the ADC
                ;? adcEnableSync(ADC_REF_FIXED, ADC_SAMPLE_TIME_2P7_US, ADC_TRIGGER_MANUAL);
-00ba ---- 0020                         ld          R0, #32
-00bb ---- 8b49                         out         R0, [#IOP_EVCTL_PROGDLY]
-00bc ---- 8db1                         wev1        #WEVSEL_PROG_DLY
-00bd ---- 0041                         ld          R0, #((0 | (((3 < 6) & (!0)) * ADI16_ADCREF_REF_ON_IDLE)) | ADI16_ADCREF_EN)
-00be ---- 8b9f                         out         R0, [#IOP_ADISET_ADCREF]
-00bf 863f 0301                         ld          R0, #((63 << 8) | 0x0001)
-00c1 ---- 6467                         iobset      #IOB_SYSIF_ADCCLKCTL_REQ, [#IOP_SYSIF_ADCCLKCTL]
-               /id0115:
-00c2 ---- 2567                         iobtst      #IOB_SYSIF_ADCCLKCTL_ACK, [#IOP_SYSIF_ADCCLKCTL]
-00c3 ---- a6fe                         biob0       /id0115
-00c4 ---- 8b8e                         out         R0, [#IOP_ANAIF_ADCCTL]
-00c5 ---- 0078                         ld          R0, #BV_ADI16_ADC_SMPL_CYCLE_EXP
-00c6 ---- 8ba6                         out         R0, [#IOP_ADICLR_ADC]
-00c7 ---- 0018                         ld          R0, #(3 << BI_ADI16_ADC_SMPL_CYCLE_EXP)
-00c8 ---- 8b9e                         out         R0, [#IOP_ADISET_ADC]
-00c9 ---- 0003                         ld          R0, #(ADI16_ADC_EN | ADI16_ADC_RESET_N)
+00bc ---- 0020                         ld          R0, #32
+00bd ---- 8b49                         out         R0, [#IOP_EVCTL_PROGDLY]
+00be ---- 8db1                         wev1        #WEVSEL_PROG_DLY
+00bf ---- 0041                         ld          R0, #((0 | (((3 < 6) & (!0)) * ADI16_ADCREF_REF_ON_IDLE)) | ADI16_ADCREF_EN)
+00c0 ---- 8b9f                         out         R0, [#IOP_ADISET_ADCREF]
+00c1 863f 0301                         ld          R0, #((63 << 8) | 0x0001)
+00c3 ---- 6467                         iobset      #IOB_SYSIF_ADCCLKCTL_REQ, [#IOP_SYSIF_ADCCLKCTL]
+               /id0117:
+00c4 ---- 2567                         iobtst      #IOB_SYSIF_ADCCLKCTL_ACK, [#IOP_SYSIF_ADCCLKCTL]
+00c5 ---- a6fe                         biob0       /id0117
+00c6 ---- 8b8e                         out         R0, [#IOP_ANAIF_ADCCTL]
+00c7 ---- 0078                         ld          R0, #BV_ADI16_ADC_SMPL_CYCLE_EXP
+00c8 ---- 8ba6                         out         R0, [#IOP_ADICLR_ADC]
+00c9 ---- 0018                         ld          R0, #(3 << BI_ADI16_ADC_SMPL_CYCLE_EXP)
 00ca ---- 8b9e                         out         R0, [#IOP_ADISET_ADC]
-00cb ---- 8b9e                         out         R0, [#IOP_ADISET_ADC]
+00cb ---- 0003                         ld          R0, #(ADI16_ADC_EN | ADI16_ADC_RESET_N)
 00cc ---- 8b9e                         out         R0, [#IOP_ADISET_ADC]
 00cd ---- 8b9e                         out         R0, [#IOP_ADISET_ADC]
+00ce ---- 8b9e                         out         R0, [#IOP_ADISET_ADC]
+00cf ---- 8b9e                         out         R0, [#IOP_ADISET_ADC]
                ;? U16 signal;
                ;? for (U16 n = 0; n < CHANNEL_COUNT; n++) {
-00ce ---- 0000                         ld          R0, #0
-               /id0145:
+00d0 ---- 0000                         ld          R0, #0
+               /id0144:
                ;?
                ;?     adcEnableSync(ADC_REF_FIXED, ADC_SAMPLE_TIME_2P7_US, ADC_TRIGGER_MANUAL);
-00cf ---- 6020                             ld          R6, #32
-00d0 ---- eb49                             out         R6, [#IOP_EVCTL_PROGDLY]
-00d1 ---- 8db1                             wev1        #WEVSEL_PROG_DLY
-00d2 ---- 6041                             ld          R6, #((0 | (((3 < 6) & (!0)) * ADI16_ADCREF_REF_ON_IDLE)) | ADI16_ADCREF_EN)
-00d3 ---- eb9f                             out         R6, [#IOP_ADISET_ADCREF]
-00d4 863f 6301                             ld          R6, #((63 << 8) | 0x0001)
-00d6 ---- 6467                             iobset      #IOB_SYSIF_ADCCLKCTL_REQ, [#IOP_SYSIF_ADCCLKCTL]
-               /id0117:
-00d7 ---- 2567                             iobtst      #IOB_SYSIF_ADCCLKCTL_ACK, [#IOP_SYSIF_ADCCLKCTL]
-00d8 ---- a6fe                             biob0       /id0117
-00d9 ---- eb8e                             out         R6, [#IOP_ANAIF_ADCCTL]
-00da ---- 6078                             ld          R6, #BV_ADI16_ADC_SMPL_CYCLE_EXP
-00db ---- eba6                             out         R6, [#IOP_ADICLR_ADC]
-00dc ---- 6018                             ld          R6, #(3 << BI_ADI16_ADC_SMPL_CYCLE_EXP)
-00dd ---- eb9e                             out         R6, [#IOP_ADISET_ADC]
-00de ---- 6003                             ld          R6, #(ADI16_ADC_EN | ADI16_ADC_RESET_N)
+00d1 ---- 6020                             ld          R6, #32
+00d2 ---- eb49                             out         R6, [#IOP_EVCTL_PROGDLY]
+00d3 ---- 8db1                             wev1        #WEVSEL_PROG_DLY
+00d4 ---- 6041                             ld          R6, #((0 | (((3 < 6) & (!0)) * ADI16_ADCREF_REF_ON_IDLE)) | ADI16_ADCREF_EN)
+00d5 ---- eb9f                             out         R6, [#IOP_ADISET_ADCREF]
+00d6 863f 6301                             ld          R6, #((63 << 8) | 0x0001)
+00d8 ---- 6467                             iobset      #IOB_SYSIF_ADCCLKCTL_REQ, [#IOP_SYSIF_ADCCLKCTL]
+               /id0119:
+00d9 ---- 2567                             iobtst      #IOB_SYSIF_ADCCLKCTL_ACK, [#IOP_SYSIF_ADCCLKCTL]
+00da ---- a6fe                             biob0       /id0119
+00db ---- eb8e                             out         R6, [#IOP_ANAIF_ADCCTL]
+00dc ---- 6078                             ld          R6, #BV_ADI16_ADC_SMPL_CYCLE_EXP
+00dd ---- eba6                             out         R6, [#IOP_ADICLR_ADC]
+00de ---- 6018                             ld          R6, #(3 << BI_ADI16_ADC_SMPL_CYCLE_EXP)
 00df ---- eb9e                             out         R6, [#IOP_ADISET_ADC]
-00e0 ---- eb9e                             out         R6, [#IOP_ADISET_ADC]
+00e0 ---- 6003                             ld          R6, #(ADI16_ADC_EN | ADI16_ADC_RESET_N)
 00e1 ---- eb9e                             out         R6, [#IOP_ADISET_ADC]
 00e2 ---- eb9e                             out         R6, [#IOP_ADISET_ADC]
+00e3 ---- eb9e                             out         R6, [#IOP_ADISET_ADC]
+00e4 ---- eb9e                             out         R6, [#IOP_ADISET_ADC]
                ;?
                ;?     adcSelectGpioInput(cfg.pAuxioASensorOutput[n]);
-00e3 ---- 60ae                             ld          R6, #(achButton/cfg/pAuxioASensorOutput + 0)
-00e4 ---- ff1e                             ld          R7, [R6+R0]
-00e5 ---- 1512                             jsr         AdccompbSelectGpioInput
+00e5 ---- 60ae                             ld          R6, #(achButton/cfg/pAuxioASensorOutput + 0)
+00e6 ---- ff1e                             ld          R7, [R6+R0]
+00e7 ---- 150d                             jsr         AdccompbSelectGpioInput
                ;?
                ;?     U16 adcValue;
                ;?     adcGenManualTrigger();
-00e6 ---- 6491                             iobset      #0, [#IOP_ANAIF_ADCTRIG]
+00e8 ---- 6491                             iobset      #0, [#IOP_ANAIF_ADCTRIG]
                ;?     adcReadFifo(adcValue);
-00e7 ---- edb1                             wev1        #WEVSEL_ADC_FIFO_NOT_EMPTY
-00e8 ---- e990                             in          R6, [#IOP_ANAIF_ADCFIFO]
+00e9 ---- edb1                             wev1        #WEVSEL_ADC_FIFO_NOT_EMPTY
+00ea ---- e990                             in          R6, [#IOP_ANAIF_ADCFIFO]
                ;?     state.adcValue = adcValue;
-00e9 ---- 6cb5                             st          R6, [#achButton/state/adcValue]
+00eb ---- 6cb7                             st          R6, [#achButton/state/adcValue]
                ;?     output.pAdcValue[n] = adcValue;
-00ea ---- 70b3                             ld          R7, #(achButton/output/pAdcValue + 0)
-00eb ---- ef3f                             st          R6, [R7+R0]
+00ec ---- 70b4                             ld          R7, #(achButton/output/pAdcValue + 0)
+00ed ---- ef3f                             st          R6, [R7+R0]
                ;?
                ;?     if (output.pAdcValue[0] > 1300 ) {
-00ec ---- 68b3                             ld          R6, [#(achButton/output/pAdcValue + 0)]
-00ed 8605 ea14                             cmp         R6, #1300
-00ef ---- 9e11                             bleu        /id0127
+00ee ---- 68b4                             ld          R6, [#(achButton/output/pAdcValue + 0)]
+00ef 8605 ea14                             cmp         R6, #1300
+00f1 ---- 9e11                             bleu        /id0129
                ;?         if( output.pAdcValue[0] > 2600){
-00f0 ---- 68b3                                 ld          R6, [#(achButton/output/pAdcValue + 0)]
-00f1 860a ea28                                 cmp         R6, #2600
-00f3 ---- 9e03                                 bleu        /id0130
+00f2 ---- 68b4                                 ld          R6, [#(achButton/output/pAdcValue + 0)]
+00f3 860a ea28                                 cmp         R6, #2600
+00f5 ---- 9e03                                 bleu        /id0132
                ;?             state.buttonState = 3;
-00f4 ---- 6003                                     ld          R6, #3
-00f5 ---- 6cb6                                     st          R6, [#achButton/state/buttonState]
+00f6 ---- 6003                                     ld          R6, #3
+00f7 ---- 6cb8                                     st          R6, [#achButton/state/buttonState]
                ;?         }else{
-00f6 ---- 0500                                 jmp         /id0132
-               /id0130:
-               ;?             if(output.pAdcValue[0] > 2200){
-00f7 ---- 68b3                                     ld          R6, [#(achButton/output/pAdcValue + 0)]
-00f8 8608 ea98                                     cmp         R6, #2200
-00fa ---- 9e03                                     bleu        /id0134
-               ;?                 state.buttonState = 1;
-00fb ---- 6001                                         ld          R6, #1
-00fc ---- 6cb6                                         st          R6, [#achButton/state/buttonState]
-               ;?             }else{
-00fd ---- 0500                                     jmp         /id0136
-               /id0134:
-               ;?                 state.buttonState = 2;
-00fe ---- 6002                                         ld          R6, #2
-00ff ---- 6cb6                                         st          R6, [#achButton/state/buttonState]
-               ;?             }
-               /id0136:
-               ;?         }
+00f8 ---- 0502                                 jmp         /id0134
                /id0132:
+               ;?             if(output.pAdcValue[0] > 2200){
+00f9 ---- 68b4                                     ld          R6, [#(achButton/output/pAdcValue + 0)]
+00fa 8608 ea98                                     cmp         R6, #2200
+00fc ---- 9e03                                     bleu        /id0136
+               ;?                 state.buttonState = 1;
+00fd ---- 6001                                         ld          R6, #1
+00fe ---- 6cb8                                         st          R6, [#achButton/state/buttonState]
+               ;?             }else{
+00ff ---- 0502                                     jmp         /id0138
+               /id0136:
+               ;?                 state.buttonState = 2;
+0100 ---- 6002                                         ld          R6, #2
+0101 ---- 6cb8                                         st          R6, [#achButton/state/buttonState]
+               ;?             }
+               /id0138:
+               ;?         }
+               /id0134:
                ;?     }else{
-0100 ---- 0503                             jmp         /id0129
-               /id0127:
+0102 ---- 0505                             jmp         /id0131
+               /id0129:
                ;?
                ;?         state.buttonState = 0;
-0101 ---- 6000                                 ld          R6, #0
-0102 ---- 6cb6                                 st          R6, [#achButton/state/buttonState]
+0103 ---- 6000                                 ld          R6, #0
+0104 ---- 6cb8                                 st          R6, [#achButton/state/buttonState]
                ;?     }
-               /id0129:
-               ;?      if (output.pAdcValue[0] > 1000 ) {
-0103 ---- 68b3                             ld          R6, [#(achButton/output/pAdcValue + 0)]
-0104 8603 eae8                             cmp         R6, #1000
-0106 ---- 9e03                             bleu        /id0140
-               ;?         fwGenAlertInterrupt();
-0107 ---- 68a4                                 ld          R6, [#fwCtrlInt/bvTaskIoAlert]
-0108 ---- e201                                 or          R6, #(1 << 0)
-0109 ---- 6ca4                                 st          R6, [#fwCtrlInt/bvTaskIoAlert]
-               ;?     }
-               /id0140:
+               /id0131:
                ;?
                ;?     // Disable the ADC
                ;?     adcDisable();
-010a ---- 151d                             jsr         AdcDisable
+0105 ---- 1518                             jsr         AdcDisable
                ;?     // Schedule the next execution
                ;?     fwScheduleTask(1);
-010b ---- 6001                             ld          R6, #1
-010c ---- 6c9e                             st          R6, [#(pFwTaskExecuteScheduleTable + 0)]
+0106 ---- 6001                             ld          R6, #1
+0107 ---- 6c9e                             st          R6, [#(pFwTaskExecuteScheduleTable + 0)]
                ;? }
-010d ---- 8801                         add         R0, #1
-010e ---- 8a02                         cmp         R0, #2
-010f ---- aebf                         bltu        /id0145
+0108 ---- 8801                         add         R0, #1
+0109 ---- 8a03                         cmp         R0, #3
+010a ---- aec6                         bltu        /id0144
                achButton/executeDone:
-0110 ---- adb7                         rts
+010b ---- adb7                         rts
 
 
 
@@ -582,7 +574,7 @@
                achButton/terminate:
                ;?
                achButton/terminateDone:
-0111 ---- adb7                         rts
+010c ---- adb7                         rts
                .segment end "Task: achButton"
 
 
@@ -594,22 +586,22 @@
                ;     R6, R7
                AdccompbSelectGpioInput:
                                        ; Make sure that the AUX I/O index is valid
-0112 ---- f8ed                         add         R7, #-ADI_ANALOG_MUX_AUXIO_BASE_INDEX
-0113 ---- f007                         and         R7, #0x0007
+010d ---- f8ed                         add         R7, #-ADI_ANALOG_MUX_AUXIO_BASE_INDEX
+010e ---- f007                         and         R7, #0x0007
 
                                        ; Disconnect all signals
-0114 86ff 63f8                         ld          R6, #(BV_ADI16_MUX2_ADCCOMPB_IN | BV_ADI16_MUX3_ADCCOMPB_IN)
-0116 ---- eba3                         out         R6, [#IOP_ADICLR_MUX2_MUX3]
+010f 86ff 63f8                         ld          R6, #(BV_ADI16_MUX2_ADCCOMPB_IN | BV_ADI16_MUX3_ADCCOMPB_IN)
+0111 ---- eba3                         out         R6, [#IOP_ADICLR_MUX2_MUX3]
 
                                        ; Connect the specified GPIO
-0117 8680 6000                         ld          R6, #ADI16_MUX3_ADCCOMPB_IN_AUXIO0
-0119 ---- ed8f                         lsr         R6, R7
-011a ---- eb9b                         out         R6, [#IOP_ADISET_MUX2_MUX3]
+0112 8680 6000                         ld          R6, #ADI16_MUX3_ADCCOMPB_IN_AUXIO0
+0114 ---- ed8f                         lsr         R6, R7
+0115 ---- eb9b                         out         R6, [#IOP_ADISET_MUX2_MUX3]
 
                                        ; Flush the ADI interface
-011b ---- eb9b                         out         R6, [#IOP_ADISET_MUX2_MUX3]
+0116 ---- eb9b                         out         R6, [#IOP_ADISET_MUX2_MUX3]
 
-011c ---- adb7                         rts
+0117 ---- adb7                         rts
 
 
 
@@ -618,24 +610,24 @@
                ;     R7
                AdcDisable:
                                        ; Disable the ADC reference
-011d ---- 7079                         ld          R7, #((ADI16_ADCREF_EN | ADI16_ADCREF_REF_ON_IDLE) | (ADI16_ADCREF_SRC | (ADI16_ADCREF_EXT | ADI16_ADCREF_IOMUX)))
-011e ---- fba7                         out         R7, [#IOP_ADICLR_ADCREF]
+0118 ---- 7079                         ld          R7, #((ADI16_ADCREF_EN | ADI16_ADCREF_REF_ON_IDLE) | (ADI16_ADCREF_SRC | (ADI16_ADCREF_EXT | ADI16_ADCREF_IOMUX)))
+0119 ---- fba7                         out         R7, [#IOP_ADICLR_ADCREF]
 
                                        ; Assert reset and disable the ADC
-011f ---- 71fb                         ld          R7, #((ADI16_ADC_EN | ADI16_ADC_RESET_N) | (BV_ADI16_ADC_SMPL_CYCLE_EXP | (BV_ADI16_ADC_SMPL_MODE | ADI16_ADC_SCALE_DIS)))
-0120 ---- fba6                         out         R7, [#IOP_ADICLR_ADC]
+011a ---- 71fb                         ld          R7, #((ADI16_ADC_EN | ADI16_ADC_RESET_N) | (BV_ADI16_ADC_SMPL_CYCLE_EXP | (BV_ADI16_ADC_SMPL_MODE | ADI16_ADC_SCALE_DIS)))
+011b ---- fba6                         out         R7, [#IOP_ADICLR_ADC]
 
                                        ; Flush the ADI interface
-0121 ---- fba6                         out         R7, [#IOP_ADICLR_ADC]
+011c ---- fba6                         out         R7, [#IOP_ADICLR_ADC]
 
                                        ; Disable the ADC clock (no need to wait since IOB_SYSIF_ADCCLKCTL_ACK goes low immediately)
-0122 ---- 4467                         iobclr      #IOB_SYSIF_ADCCLKCTL_REQ, [#IOP_SYSIF_ADCCLKCTL]
+011d ---- 4467                         iobclr      #IOB_SYSIF_ADCCLKCTL_REQ, [#IOP_SYSIF_ADCCLKCTL]
 
                                        ; Disable the ADC data interface
-0123 ---- 448e                         iobclr      #0, [#IOP_ANAIF_ADCCTL]
+011e ---- 448e                         iobclr      #0, [#IOP_ANAIF_ADCCTL]
 
-0124 ---- adb7                         rts
+011f ---- adb7                         rts
                .segment end "Procedure Library"
 
 
-; Generated by DESKTOP-QRGPGQ2 at 2023-06-14 16:42:59.715
+; Generated by SAHANVIDURANGA at 2023-07-19 16:28:32.955

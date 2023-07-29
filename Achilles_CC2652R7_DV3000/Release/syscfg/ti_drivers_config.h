@@ -111,18 +111,21 @@ extern const uint_least8_t CONFIG_GPIO_WAKEUP_CONST;
 #define CONFIG_GPIO_WAKEUP 11
 
 extern const uint_least8_t CONFIG_GPIO_1_CONST;
-#define CONFIG_GPIO_1 18
+#define CONFIG_GPIO_1 19
 
 extern const uint_least8_t CONFIG_GPIO_RLED_CONST;
 #define CONFIG_GPIO_RLED 6
 
+extern const uint_least8_t HeatercheckOn_CONST;
+#define HeatercheckOn 18
+
 /* Owned by CONFIG_I2C_0 as  */
 extern const uint_least8_t CONFIG_GPIO_I2C_0_SDA_CONST;
-#define CONFIG_GPIO_I2C_0_SDA 5
+#define CONFIG_GPIO_I2C_0_SDA 4
 
 /* Owned by CONFIG_I2C_0 as  */
 extern const uint_least8_t CONFIG_GPIO_I2C_0_SCL_CONST;
-#define CONFIG_GPIO_I2C_0_SCL 4
+#define CONFIG_GPIO_I2C_0_SCL 5
 
 /* Owned by CONFIG_GPTIMER_0 as  */
 extern const uint_least8_t CONFIG_GPIO_PWM_0_CONST;
@@ -166,7 +169,7 @@ extern const uint_least8_t CONFIG_LED_1_GPIO_CONST;
 
 /* Owned by CONFIG_LED_2 as  */
 extern const uint_least8_t CONFIG_LED_2_GPIO_CONST;
-#define CONFIG_LED_2_GPIO 19
+#define CONFIG_LED_2_GPIO 23
 
 /* Owned by CONFIG_NVS_SPI_0 as  */
 extern const uint_least8_t CONFIG_GPIO_0_CONST;
@@ -189,8 +192,8 @@ extern const uint_least8_t GPIO_pinUpperBound;
  */
 
 /*
- *  SCL: DIO4
- *  SDA: DIO5
+ *  SCL: DIO5
+ *  SDA: DIO4
  */
 extern const uint_least8_t              CONFIG_I2C_0_CONST;
 #define CONFIG_I2C_0                    0

@@ -81,7 +81,7 @@
 /* Bluetooth Profiles */
 #include <devinfoservice.h>
 #include <profiles/project_zero/button_service.h>
-#include <profiles/project_zero/led_service.h>
+//#include <profiles/project_zero/led_service.h>
 #include <profiles/project_zero/data_service.h>
 #include <profiles/oad/cc26xx/oad.h>
 #include <observerNotify.h>
@@ -127,7 +127,7 @@
 #define PZ_TASK_PRIORITY                     2
 
 #ifndef PZ_TASK_STACK_SIZE
-#define PZ_TASK_STACK_SIZE                   2048
+#define PZ_TASK_STACK_SIZE                   4096
 #endif
 
 
@@ -135,7 +135,7 @@
 #define sbcTaskS_PRIORITY                     1
 
 #ifndef SBS_TASK_STACK_SIZE
-#define SBS_TASK_STACK_SIZE                   800
+#define SBS_TASK_STACK_SIZE                   1024
 #endif
 //
 //#define sbcTaskS_PRIORITY         1
@@ -333,7 +333,7 @@ Char sbcTaskStack[SBS_TASK_STACK_SIZE];
 
 uint8 Status[12];
 //Status Reply Constants
-uint8 pulsecount = 0;
+uint16 pulsecount = 0;
 uint8 chargingCompletionFlag = 0;
 uint8 chargingStatus = 0;
 uint8 buttonPresscount = 0;
@@ -456,6 +456,7 @@ I2C_Handle      i2c;
 I2C_Params      i2cParams;
 I2C_Transaction i2cTransaction;
 Watchdog_Handle watchdogHandle;
+
 //ADC_Params params;
 //ADC_Handle adcHandle;
 //Calibrating Parameters
@@ -483,7 +484,7 @@ int initialBodyTemp = 0;
 int initialWiretemp = 0;
 uint16_t initialBP_ADC = 0;
 uint8_t batteryLevelPatern=0;
-
+uint16_t heaterOkAdc = 0;
 
 int startCount=0;
 int continueFlag=0;
@@ -493,8 +494,9 @@ int protocol_select=0;
 int current_running_state=0;
 int pre_pow_state=0;
 
-
-
+//fail_safe_fet_on
+bool fail_safe_fet_on=true;
+bool sleepIndicateflag=true;
 // Entity ID globally used to check for source and/or destination of messages
 static ICall_EntityID selfEntity;
 
@@ -733,11 +735,7 @@ static gapBondCBs_t AchillesPB_BondMgrCBs =
  */
 // LED Service callback handler.
 // The type LED_ServiceCBs_t is defined in led_service.h
-static LedServiceCBs_t AchillesPB_LED_ServiceCBs =
-{
-    .pfnChangeCb = AchillesPB_LedService_ValueChangeCB,  // Characteristic value change callback handler
-    .pfnCfgChangeCb = NULL, // No notification-/indication enabled chars in LED Service
-};
+
 
 // Button Service callback handler.
 // The type Button_ServiceCBs_t is defined in button_service.h
@@ -921,7 +919,7 @@ static void AchillesPB_init(void)
     Clock_construct(&i2cCommunicateClock, i2cCommClockSwiFxn,
                     0, // Initial delay before first timeout
                     &i2cCommunicateClockParams);
-   // Clock_start(Clock_handle(&i2cCommunicateClock));
+    Clock_start(Clock_handle(&i2cCommunicateClock));
 
 
     //Button sense clock
@@ -960,7 +958,7 @@ static void AchillesPB_init(void)
     DevInfo_AddService();                      // Device Information Service
 
     // Add services to GATT server and give ID of this task for Indication acks.
-    LedService_AddService(selfEntity);
+
     ButtonService_AddService(selfEntity);
     DataService_AddService(selfEntity);
     ObserverNotify_AddService(selfEntity);
@@ -1001,7 +999,7 @@ static void AchillesPB_init(void)
 
     // Register callbacks with the generated services that
     // can generate events (writes received) to the application
-    LedService_RegisterAppCBs(&AchillesPB_LED_ServiceCBs);
+
     ButtonService_RegisterAppCBs(&AchillesPB_Button_ServiceCBs);
     DataService_RegisterAppCBs(&AchillesPB_Data_ServiceCBs);
     ObserverNotify_RegisterAppCBs(&user_observerNotifyCBs);
@@ -1013,9 +1011,7 @@ static void AchillesPB_init(void)
     uint8_t initVal[40] = {0};
     uint8_t initString[] = "This is a pretty long string, isn't it!";
 
-    // Initalization of characteristics in LED_Service that can provide data.
-    LedService_SetParameter(LS_LED0_ID, LS_LED0_LEN, initVal);
-    LedService_SetParameter(LS_LED1_ID, LS_LED1_LEN, initVal);
+
 
     // Initalization of characteristics in Button_Service that can provide data.
     ButtonService_SetParameter(BS_BUTTON0_ID, BS_BUTTON0_LEN, initVal);
@@ -1089,7 +1085,6 @@ static void AchillesPB_init(void)
     GPIO_setConfig(CONFIG_LED_1_GPIO, GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW);
     GPIO_setConfig(CONFIG_LED_2_GPIO, GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW);
     GPIO_write(bukEnable, 1); //Turn on 5V buck
-
 //    ADC_init();
 //    ADC_Params_init(&params);
 //    params.isProtected = true;
@@ -1473,9 +1468,7 @@ static void AchillesPB_processApplicationMessage(pzMsg_t *pMsg)
           /* Call different handler per service */
           switch(pCharData->svcUUID)
           {
-            case LED_SERVICE_SERV_UUID:
-                AchillesPB_LedService_ValueChangeHandler(pCharData);
-                break;
+
             case DATA_SERVICE_SERV_UUID:
                 AchillesPB_DataService_ValueChangeHandler(pCharData);
                 break;
@@ -2616,56 +2609,6 @@ static void AchillesPB_handleButtonPress(pzButtonState_t *pState)
  *
  * @return  None.
  */
-void AchillesPB_LedService_ValueChangeHandler(
-    pzCharacteristicData_t *pCharData)
-{
-    static uint8_t pretty_data_holder[16]; // 5 bytes as hex string "AA:BB:CC:DD:EE"
-    util_arrtohex(pCharData->data, pCharData->dataLen,
-                  pretty_data_holder, sizeof(pretty_data_holder),
-                  UTIL_ARRTOHEX_NO_REVERSE);
-
-    switch(pCharData->paramID)
-    {
-    case LS_LED0_ID:
-        Log_info3("Value Change msg: %s %s: %s",
-                  (uintptr_t)"LED Service",
-                  (uintptr_t)"LED0",
-                  (uintptr_t)pretty_data_holder);
-        Power_enablePolicy();
-               /* Configure DIO for wake up from shutdown */
-        GPIO_setConfig(CONFIG_GPIO_WAKEUP, GPIO_CFG_IN_PD | GPIO_CFG_SHUTDOWN_WAKE_HIGH);
-               /* Go to shutdown */
-        GPIO_write(bukEnable, 0);
-        Power_shutdown( 0, 0);
-        // Do something useful with pCharData->data here
-        // -------------------------
-        // Set the output value equal to the received value. 0 is off, not 0 is on
-//        GPIO_write(CONFIG_GPIO_GLED, pCharData->data[0]);
-//        Log_info2("Turning %s %s",
-//                  (uintptr_t)ANSI_COLOR(FG_RED)"LED0"ANSI_COLOR(ATTR_RESET),
-//                  (uintptr_t)(pCharData->data[0] ? "on" : "off"));
-       // runheater(runheatr_test);
-        break;
-
-    case LS_LED1_ID:
-        Log_info3("Value Change msg: %s %s: %s",
-                  (uintptr_t)"LED Service",
-                  (uintptr_t)"LED1",
-                  (uintptr_t)pretty_data_holder);
-
-        // Do something useful with pCharData->data here
-        // -------------------------
-        // Set the output value equal to the received value. 0 is off, not 0 is on
-        GPIO_write(CONFIG_GPIO_GLED, pCharData->data[0]);
-        Log_info2("Turning %s %s",
-                  (uintptr_t)ANSI_COLOR(FG_GREEN)"LED1"ANSI_COLOR(ATTR_RESET),
-                  (uintptr_t)(pCharData->data[0] ? "on" : "off"));
-        break;
-
-    default:
-        return;
-    }
-}
 
 /*********************************************************************
  * @brief   Handle a CCCD (configuration change) write received from a peer
@@ -2834,11 +2777,6 @@ static void AchillesPB_updateCharVal(pzCharacteristicData_t *pCharData)
 {
     switch(pCharData->svcUUID)
     {
-    case LED_SERVICE_SERV_UUID:
-        LedService_SetParameter(pCharData->paramID, pCharData->dataLen,
-                                pCharData->data);
-
-        break;
 
     case BUTTON_SERVICE_SERV_UUID:
         ButtonService_SetParameter(pCharData->paramID, pCharData->dataLen,
@@ -2950,40 +2888,7 @@ static void AchillesPB_passcodeCb(uint8_t *pDeviceAddr,
     ;
 }
 
-/*********************************************************************
- * @fn      AchillesPB_LedService_ValueChangeCB
- *
- * @brief   Callback for characteristic change when a peer writes to us
- *
- * @param   connHandle - connection handle
- *          paramID - the parameter ID maps to the characteristic written to
- *          len - length of the data written
- *          pValue - pointer to the data written
- */
-static void AchillesPB_LedService_ValueChangeCB(uint16_t connHandle,
-                                                 uint8_t paramID, uint16_t len,
-                                                 uint8_t *pValue)
-{
-    // See the service header file to compare paramID with characteristic.
-    Log_info1("(CB) LED Svc Characteristic value change: paramID(%d). "
-              "Sending msg to app.", paramID);
 
-    pzCharacteristicData_t *pValChange =
-        ICall_malloc(sizeof(pzCharacteristicData_t) + len);
-
-    if(pValChange != NULL)
-    {
-        pValChange->svcUUID = LED_SERVICE_SERV_UUID;
-        pValChange->paramID = paramID;
-        memcpy(pValChange->data, pValue, len);
-        pValChange->dataLen = len;
-
-        if(AchillesPB_enqueueMsg(PZ_SERVICE_WRITE_EVT, pValChange) != SUCCESS)
-        {
-          ICall_free(pValChange);
-        }
-    }
-}
 
 /*********************************************************************
  * @fn      AchillesPB_DataService_ValueChangeCB
@@ -3256,18 +3161,47 @@ static void GPIO_Board_keyCallback(uint_least8_t index)
  */
 
 static void notifySetdata(){
-    pulsecount +=1;
+
+    if(Current_Status ==3 || Current_Status == 9){
+       // powerOnFlag
+        pulsecount = 0;
+    }
+    else{
+        pulsecount +=1;
+    }
+
+    if(pulsecount > 60){
+        powerOnFlag = 0;
+        buttonPresscountPW = 0;
+        manualCount = 0;
+        achilliesInit(2);
+        buttonPresscount =0;
+        stopFlag = 1;
+        mannualOperationStop = 1;
+        GapAdv_disable(advHandleLegacy);
+        uint32_t bleState = 0;
+        HWREG(0x40004000) = bleState;
+        Log_info0("BLE DISabled");
+        countTick = 0;
+        GPIO_write(bukEnable, 0); //Turn OFF 5V buck
+        /* Enable Power Policies */
+        Power_enablePolicy();
+        /* Configure DIO for wake up from shutdown */
+        GPIO_setConfig(CONFIG_GPIO_WAKEUP, GPIO_CFG_IN_PD | GPIO_CFG_SHUTDOWN_WAKE_HIGH);
+        /* Go to shutdown */
+        Power_shutdown( 0, 0);
+    }
+
     //batteryLevelApp =96;
     chargingStatus = GPIO_read(CONFIG_GPIO_BTN1);
-
     heaterAdc = scifTaskData.achButton.output.pAdcValue[1];
     Log_info1("Current Status : %d", Current_Status);
-    Log_info1("setPointTemp : %d", setPointTemp);
     Log_info1("batteryLevelApp : %d", batteryLevelApp);
-    Log_info1("heater check Adc : %d", heaterAdc);
+    Log_info1("chargingCompletionFlag______________________________ : %d", chargingCompletionFlag);
+    Log_info1("pulsecount__________________________________________ : %d", pulsecount);
 //    uint32_t constraints = Power_getConstraintMask();
 //    Log_info1("constraints : %d", constraints);e
-    if(chargingStatus == 0){
+    if(chargingStatus == 0){//device is charging
         //batCount = 0;
         Current_Status = 8;
         pulsecount = 0;
@@ -3275,25 +3209,28 @@ static void notifySetdata(){
         chargeStaetFlag = 1;
         Clock_start(Clock_handle(&i2cCommunicateClock));
         GPIO_write(bukEnable, 1); //Turn On 5V buck
+        Task_sleep (100 * (1000 / Clock_tickPeriod));
         buttonPresscount =0;
         PWM_stop(PWM1);
         GPIO_write(irOutput, 0);
-        Log_info0("IR off Charging");
         stopFlag = 1;
         Clock_stop(Clock_handle(&stopClock));
         countTick = 0;
         if(batteryLevelApp < 30){
-            WS2812_setPixelColor(0, 0xFF, 0xC0, 0);
+
+            WS2812_setPixelColor(0, 0, 0, 0);
             WS2812_setPixelColor(1, 0, 0, 0);
-            WS2812_setPixelColor(2, 0, 0, 0);
+            WS2812_setPixelColor(2, 0xFF, 0xC0, 0);
             WS2812_show();
             Task_sleep (100 * (1000 / Clock_tickPeriod));
             onLEDs(1,0,0, 0 );
            }
         else if(batteryLevelApp < 60 && batteryLevelApp > 30 ){
-            WS2812_setPixelColor(0, 0xFF, 0xC0, 0);
+
+            WS2812_setPixelColor(0, 0, 0, 0);
             WS2812_setPixelColor(1, 0xFF, 0xC0, 0);
-            WS2812_setPixelColor(2, 0, 0, 0);
+            WS2812_setPixelColor(2, 0xFF, 0xC0, 0);
+
             WS2812_show();
             Task_sleep (100 * (1000 / Clock_tickPeriod));
             WS2812_setPixelColor(1, 0, 0, 0);
@@ -3306,11 +3243,11 @@ static void notifySetdata(){
             WS2812_setPixelColor(2, 0xFF, 0xC0, 0);
             WS2812_show();
             Task_sleep (100 * (1000 / Clock_tickPeriod));
-            WS2812_setPixelColor(2, 0, 0, 0);
+            WS2812_setPixelColor(0, 0, 0, 0);
             WS2812_show();
         }
 
-        else if(batteryLevelApp > 95){
+        else if(batteryLevelApp > 95){//sahan add this.when unplug the charging, it continuosly blink the bulb
             WS2812_setPixelColor(0, 0x3B,0xFF, 0x09);
             WS2812_setPixelColor(1, 0x3B,0xFF, 0x09);
             WS2812_setPixelColor(2, 0x3B,0xFF, 0x09);
@@ -3334,23 +3271,24 @@ static void notifySetdata(){
             WS2812_setPixelColor(1, 0,0, 0);
             WS2812_setPixelColor(2, 0,0, 0);
             WS2812_show();
+            chargingCompletionFlag = 0;
     }
     else if(chargeStaetFlag == 1 && chargingStatus == 1 ){
         onLEDs(1,0,0, 0 );
         chargeStaetFlag = 0;
         Current_Status = 1;
-        Clock_stop(Clock_handle(&i2cCommunicateClock));
-        Clock_stop(Clock_handle(&Notifyclock));
-        Clock_stop(Clock_handle(&buttonsenseClock));
-
-        GPIO_write(bukEnable, 0); //Turn OFF 5V buck
-
-        /* Enable Power Policies */
-        Power_enablePolicy();
-        /* Configure DIO for wake up from shutdown */
-        GPIO_setConfig(CONFIG_GPIO_WAKEUP, GPIO_CFG_IN_PD | GPIO_CFG_SHUTDOWN_WAKE_HIGH);
-        /* Go to shutdown */
-        Power_shutdown( 0, 0);
+        //Clock_stop(Clock_handle(&i2cCommunicateClock));
+//        Clock_stop(Clock_handle(&Notifyclock));
+//        Clock_stop(Clock_handle(&buttonsenseClock));
+//
+//        GPIO_write(bukEnable, 0); //Turn OFF 5V buck
+//
+//        /* Enable Power Policies */
+//        Power_enablePolicy();
+//        /* Configure DIO for wake up from shutdown */
+//        GPIO_setConfig(CONFIG_GPIO_WAKEUP, GPIO_CFG_IN_PD | GPIO_CFG_SHUTDOWN_WAKE_HIGH);
+//        /* Go to shutdown */
+//        Power_shutdown( 0, 0);
     }
     Status[0] = Current_Status;
     Status[1] = Current_Protocol;
@@ -3435,7 +3373,10 @@ static void notifySetdata(){
                 }
             }
     Watchdog_clear(watchdogHandle);
-    GPIO_toggle(Heartbeat);
+    //GPIO_toggle(Heartbeat);
+    if(fail_safe_fet_on && sleepIndicateflag){
+               GPIO_toggle(Heartbeat);
+    }
 }
 
 /* Profile value change handlers */
@@ -3454,15 +3395,16 @@ void user_runHeater_ValueChangeHandler(pzCharacteristicData_t *pData)
                 Current_Status = 3;
                 switch(runheatr[1]){
                         case 35:
-                            WS2812_setPixelColor(0, 0xFF, 0, 0);
+                            WS2812_setPixelColor(0, 0, 0, 0);
                             WS2812_setPixelColor(1, 0, 0, 0);
-                            WS2812_setPixelColor(2, 0, 0, 0);
+                            WS2812_setPixelColor(2, 0xFF, 0, 0);
+
                             WS2812_show();
                             break;
                         case 40:
-                            WS2812_setPixelColor(0, 0xFF, 0, 0);
+                            WS2812_setPixelColor(0, 0, 0, 0);
                             WS2812_setPixelColor(1, 0xFF, 0, 0);
-                            WS2812_setPixelColor(2, 0, 0, 0);
+                            WS2812_setPixelColor(2, 0xFF, 0, 0);
                             WS2812_show();
                             break;
                         case 45:
@@ -4207,6 +4149,7 @@ static void prsButtondata(){
     if(buttonPresscountPW ==20 && powerOnFlag ==0 && chargingStatus != 0){
         //power on
         Log_info0("Device Powered ON");
+        fail_safe_fet_on=true;
         achilliesInit(1);
         delayFun (500);
         batCount = 0;
@@ -4222,6 +4165,8 @@ static void prsButtondata(){
         buttonPresscountPW = 0;
         stopFlag = 0;
         mannualOperationStop = 0;
+        dutyValue1 = (uint32_t) (((uint64_t) PWM_DUTY_FRACTION_MAX * 99) / 100);   // make here PWM value equal to 0
+        PWM_setDuty(PWM1, dutyValue1);  // set duty cycle
         for(int x =0; x<=6;x++){
                     onLEDs(1,0,0, 0xFF );
                     delayFun (250);
@@ -4236,6 +4181,7 @@ static void prsButtondata(){
         Error_level = 0;
         errorFLag = 1;
         Current_Status = 2;
+        initialCheck();
     }
     if(buttonPresscountPW ==1 && powerOnFlag !=0 && chargingStatus != 0){
         batteryIndication(0);
@@ -4253,8 +4199,8 @@ static void prsButtondata(){
         batteryLowFLag5 = 0;
         achilliesInit(2);
         Clock_stop(Clock_handle(&stopClock));
-        Clock_stop(Clock_handle(&i2cCommunicateClock));
-        Clock_stop(Clock_handle(&Notifyclock));
+        //Clock_stop(Clock_handle(&i2cCommunicateClock));
+//        Clock_stop(Clock_handle(&Notifyclock));
         buttonPresscount =0;
         PWM_stop(PWM1);
         GPIO_write(irOutput, 0);
@@ -4267,10 +4213,20 @@ static void prsButtondata(){
         countTick = 0;
 //        TMP117init(1 , 0x48);
 //        TMP117init(1 , 0x49);
-        Clock_stop(Clock_handle(&buttonsenseClock));
+//        Clock_stop(Clock_handle(&buttonsenseClock));
+        sleepIndicateflag = false; //Sleep pulse
+
+        GPIO_write(Heartbeat, 0);
+        Task_sleep (10 * (1000 / Clock_tickPeriod));
+        GPIO_write(Heartbeat, 1);
+        Task_sleep (10 * (1000 / Clock_tickPeriod));
+        GPIO_write(Heartbeat, 0);
+        Task_sleep (10 * (1000 / Clock_tickPeriod));
+        GPIO_write(Heartbeat, 1);
+
         GPIO_write(bukEnable, 0); //Turn On 5V buck
         /* Enable Power Policies */
-        //Power_enablePolicy();
+        Power_enablePolicy();
         /* Configure DIO for wake up from shutdown */
         GPIO_setConfig(CONFIG_GPIO_WAKEUP, GPIO_CFG_IN_PD | GPIO_CFG_SHUTDOWN_WAKE_HIGH);
         /* Go to shutdown */
@@ -4335,22 +4291,23 @@ static void prsButtondata(){
     }
     if(Current_Status ==9 && pixelNitify !=1){
     switch(manualCount){
+    //manual control heat level display color set
             case 0:
-                WS2812_setPixelColor(0, 0xFF, 0, 0);
-                WS2812_setPixelColor(1, 0xFF, 0, 0);
                 WS2812_setPixelColor(2, 0xFF, 0, 0);
+                WS2812_setPixelColor(1, 0xFF, 0, 0);
+                WS2812_setPixelColor(0, 0xFF, 0, 0);
                 WS2812_show();
                 break;
             case 1:
-                WS2812_setPixelColor(0, 0xFF, 0, 0);
+                WS2812_setPixelColor(2, 0xFF, 0, 0);
                 WS2812_setPixelColor(1, 0, 0, 0);
-                WS2812_setPixelColor(2, 0, 0, 0);
+                WS2812_setPixelColor(0, 0, 0, 0);
                 WS2812_show();
                 break;
             case 2:
-                WS2812_setPixelColor(0, 0xFF, 0, 0);
+                WS2812_setPixelColor(2, 0xFF, 0, 0);
                 WS2812_setPixelColor(1, 0xFF, 0, 0);
-                WS2812_setPixelColor(2, 0, 0, 0);
+                WS2812_setPixelColor(0, 0, 0, 0);
                 WS2812_show();
                 break;
 
@@ -4433,27 +4390,27 @@ static void batteryIndication(uint8_t type){
         switch(batteryLevel){
 
             case 1:
-                WS2812_setPixelColor(0,  0xFF, 0xC0, 0);
+                WS2812_setPixelColor(2,  0xFF, 0xC0, 0);
                 WS2812_setPixelColor(1, 0, 0, 0);
-                WS2812_setPixelColor(2, 0, 0, 0);
+                WS2812_setPixelColor(0, 0, 0, 0);
                 WS2812_show();
                 break;
             case 2:
-                WS2812_setPixelColor(0, 0xFF, 0xC0, 0);
+                WS2812_setPixelColor(2, 0xFF, 0xC0, 0);
                 WS2812_setPixelColor(1, 0xFF, 0xC0, 0);
-                WS2812_setPixelColor(2, 0, 0, 0);
+                WS2812_setPixelColor(0, 0, 0, 0);
                 WS2812_show();
                 break;
             case 3:
-                WS2812_setPixelColor(0,  0xFF, 0xC0, 0);
-                WS2812_setPixelColor(1,  0xFF, 0xC0, 0);
                 WS2812_setPixelColor(2,  0xFF, 0xC0, 0);
+                WS2812_setPixelColor(1,  0xFF, 0xC0, 0);
+                WS2812_setPixelColor(0,  0xFF, 0xC0, 0);
                 WS2812_show();
                 break;
             case 4:
-                WS2812_setPixelColor(0, 0x15, 0x47, 0x34);
-                WS2812_setPixelColor(1, 0x15, 0x47, 0x34);
                 WS2812_setPixelColor(2, 0x15, 0x47, 0x34);
+                WS2812_setPixelColor(1, 0x15, 0x47, 0x34);
+                WS2812_setPixelColor(0, 0x15, 0x47, 0x34);
                 WS2812_show();
                 break;
             }
@@ -4518,19 +4475,19 @@ if(pattern == 1){
 //power on seq
 else if(pattern ==2){
        Task_sleep (500 * (1000 / Clock_tickPeriod));
-       WS2812_setPixelColor(0, arg_u8_red, arg_u8_green, arg_u8_blue);
-       WS2812_setPixelColor(1, 0, 0, 0);
-       WS2812_setPixelColor(2, 0, 0, 0);
-       WS2812_show();
-       Task_sleep (500 * (1000 / Clock_tickPeriod));
-       WS2812_setPixelColor(0, arg_u8_red, arg_u8_green, arg_u8_blue);
-       WS2812_setPixelColor(1, arg_u8_red, arg_u8_green, arg_u8_blue);
-       WS2812_setPixelColor(2, 0, 0, 0);
-       WS2812_show();
-       Task_sleep (500 * (1000 / Clock_tickPeriod));
-       WS2812_setPixelColor(0, arg_u8_red, arg_u8_green, arg_u8_blue);
-       WS2812_setPixelColor(1, arg_u8_red, arg_u8_green, arg_u8_blue);
        WS2812_setPixelColor(2, arg_u8_red, arg_u8_green, arg_u8_blue);
+       WS2812_setPixelColor(1, 0, 0, 0);
+       WS2812_setPixelColor(0, 0, 0, 0);
+       WS2812_show();
+       Task_sleep (500 * (1000 / Clock_tickPeriod));
+       WS2812_setPixelColor(2, arg_u8_red, arg_u8_green, arg_u8_blue);
+       WS2812_setPixelColor(1, arg_u8_red, arg_u8_green, arg_u8_blue);
+       WS2812_setPixelColor(0, 0, 0, 0);
+       WS2812_show();
+       Task_sleep (500 * (1000 / Clock_tickPeriod));
+       WS2812_setPixelColor(2, arg_u8_red, arg_u8_green, arg_u8_blue);
+       WS2812_setPixelColor(1, arg_u8_red, arg_u8_green, arg_u8_blue);
+       WS2812_setPixelColor(0, arg_u8_red, arg_u8_green, arg_u8_blue);
        WS2812_show();
 
         }
@@ -4538,13 +4495,13 @@ else if(pattern ==2){
 else if(pattern ==3){
 
        Task_sleep (250 * (1000 / Clock_tickPeriod));
-       WS2812_setPixelColor(2, arg_u8_red, arg_u8_green, arg_u8_blue);
+       WS2812_setPixelColor(0, arg_u8_red, arg_u8_green, arg_u8_blue);
        WS2812_show();
        Task_sleep (250 * (1000 / Clock_tickPeriod));
        WS2812_setPixelColor(1, arg_u8_red, arg_u8_green, arg_u8_blue);
        WS2812_show();
        Task_sleep (250 * (1000 / Clock_tickPeriod));
-       WS2812_setPixelColor(0, arg_u8_red, arg_u8_green, arg_u8_blue);
+       WS2812_setPixelColor(2, arg_u8_red, arg_u8_green, arg_u8_blue);
        WS2812_show();
 
         }
@@ -5395,15 +5352,29 @@ initialCheck(){
  * Digital Read failsafeOff GPIO --> if its High, Failsafe uC is started its operation
  * If Failsafe uC is started operation  ---> Heater ADC Should goes to Zero
  */
-
-//    GPIO_write(HeatercheckOn, 1);
+    Log_info0("############# heater check on ##################");
+    GPIO_write(HeatercheckOn,1);
+    Task_sleep(100 * (1000/Clock_tickPeriod));
+    heaterOkAdc = scifTaskData.achButton.output.pAdcValue[2];
+    Log_info1("################################ Heater ok ADC Check:%d###########################",heaterOkAdc);
 //    //if(heaterAdc <  )
-//    GPIO_write(HeatercheckOn, 1);
+   // int state=GPIO_read(HeatercheckOn);
+   // Log_info1("%%%% heater checkOn state:%d ##################",state);
     // Error_Code = 22;
 
     //Fail safe microcontroller status check
    // Error_Code = 21;
-
+    heaterAdc = scifTaskData.achButton.output.pAdcValue[1];
+    if(heaterAdc<10){
+        Error_Code = 22;
+        errorFLag = 0;
+        Current_Status = 5;//should be change
+    }else{
+        fail_safe_fet_on=true;
+         Log_info0("################fail safe fet set to on###############################");
+    }
+    dutyValue1 = (uint32_t) (((uint64_t) PWM_DUTY_FRACTION_MAX * 0) / 100);   // make here PWM value equal to 0
+    PWM_setDuty(PWM1, dutyValue1);  // set duty cycle
     //Button pannel ADC check
     initialBP_ADC = scifTaskData.achButton.output.pAdcValue[0];
     if(initialBP_ADC > 200){

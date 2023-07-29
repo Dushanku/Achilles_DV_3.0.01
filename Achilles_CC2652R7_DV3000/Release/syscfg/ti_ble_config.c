@@ -10,7 +10,7 @@
 // The GAP profile role
 uint8_t profileRole = GAP_PROFILE_PERIPHERAL;
 // GAP GATT Service (GGS) parameters
-uint8_t attDeviceName[GAP_DEVICE_NAME_LEN]= "ACHILIES DV5";
+uint8_t attDeviceName[GAP_DEVICE_NAME_LEN]= "ACHILIES DV36";
 
 uint8_t * pRandomAddress = NULL;
 
@@ -92,7 +92,7 @@ GapAdv_params_t advParams1 = {
 
 uint8_t advData1[] =
 {
-  0x0d,
+  0x0e,
   GAP_ADTYPE_LOCAL_NAME_COMPLETE,
   'A',
   'C',
@@ -105,7 +105,8 @@ uint8_t advData1[] =
   ' ',
   'D',
   'V',
-  '5',
+  '3',
+  '6',
 
   0x02,
   GAP_ADTYPE_FLAGS,
