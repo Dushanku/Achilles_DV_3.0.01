@@ -3170,7 +3170,7 @@ static void notifySetdata(){
         pulsecount +=1;
     }
 
-    if(pulsecount > 60){
+    if(pulsecount > 1800){
         powerOnFlag = 0;
         buttonPresscountPW = 0;
         manualCount = 0;
