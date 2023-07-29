@@ -3183,6 +3183,17 @@ static void notifySetdata(){
         HWREG(0x40004000) = bleState;
         Log_info0("BLE DISabled");
         countTick = 0;
+
+        sleepIndicateflag = false; //Sleep pulse
+
+        GPIO_write(Heartbeat, 0);
+        Task_sleep (10 * (1000 / Clock_tickPeriod));
+        GPIO_write(Heartbeat, 1);
+        Task_sleep (10 * (1000 / Clock_tickPeriod));
+        GPIO_write(Heartbeat, 0);
+        Task_sleep (10 * (1000 / Clock_tickPeriod));
+        GPIO_write(Heartbeat, 1);
+
         GPIO_write(bukEnable, 0); //Turn OFF 5V buck
         /* Enable Power Policies */
         Power_enablePolicy();
@@ -4390,27 +4401,29 @@ static void batteryIndication(uint8_t type){
         switch(batteryLevel){
 
             case 1:
-                WS2812_setPixelColor(2,  0xFF, 0xC0, 0);
-                WS2812_setPixelColor(1, 0, 0, 0);
                 WS2812_setPixelColor(0, 0, 0, 0);
+                WS2812_setPixelColor(1, 0, 0, 0);
+                WS2812_setPixelColor(2,  0xFF, 0xC0, 0);
                 WS2812_show();
                 break;
             case 2:
-                WS2812_setPixelColor(2, 0xFF, 0xC0, 0);
-                WS2812_setPixelColor(1, 0xFF, 0xC0, 0);
                 WS2812_setPixelColor(0, 0, 0, 0);
+                WS2812_setPixelColor(1, 0xFF, 0xC0, 0);
+                WS2812_setPixelColor(2, 0xFF, 0xC0, 0);
+
+
                 WS2812_show();
                 break;
             case 3:
-                WS2812_setPixelColor(2,  0xFF, 0xC0, 0);
-                WS2812_setPixelColor(1,  0xFF, 0xC0, 0);
                 WS2812_setPixelColor(0,  0xFF, 0xC0, 0);
+                WS2812_setPixelColor(1,  0xFF, 0xC0, 0);
+                WS2812_setPixelColor(2,  0xFF, 0xC0, 0);
                 WS2812_show();
                 break;
             case 4:
-                WS2812_setPixelColor(2, 0x15, 0x47, 0x34);
-                WS2812_setPixelColor(1, 0x15, 0x47, 0x34);
-                WS2812_setPixelColor(0, 0x15, 0x47, 0x34);
+                WS2812_setPixelColor(0, 0xFF, 0xC0, 0);
+                WS2812_setPixelColor(1, 0xFF, 0xC0, 0);
+                WS2812_setPixelColor(2, 0xFF, 0xC0, 0);
                 WS2812_show();
                 break;
             }
