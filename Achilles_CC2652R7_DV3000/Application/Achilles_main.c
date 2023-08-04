@@ -456,7 +456,7 @@ I2C_Handle      i2c;
 I2C_Params      i2cParams;
 I2C_Transaction i2cTransaction;
 Watchdog_Handle watchdogHandle;
-
+float dutyCycle = 0;
 //ADC_Params params;
 //ADC_Handle adcHandle;
 //Calibrating Parameters
@@ -3208,8 +3208,6 @@ static void notifySetdata(){
     heaterAdc = scifTaskData.achButton.output.pAdcValue[1];
     Log_info1("Current Status : %d", Current_Status);
     Log_info1("batteryLevelApp : %d", batteryLevelApp);
-    Log_info1("chargingCompletionFlag______________________________ : %d", chargingCompletionFlag);
-    Log_info1("pulsecount__________________________________________ : %d", pulsecount);
 //    uint32_t constraints = Power_getConstraintMask();
 //    Log_info1("constraints : %d", constraints);e
     if(chargingStatus == 0){//device is charging
@@ -3774,7 +3772,7 @@ static void HeaterPID(uint16_t maxDuty, uint16_t maxHeaterTemp){
     float PreviousError  = 0 ;
     float Error = 0;
     float maxError = 15;
-    float dutyCycle = 0;
+
 
     float Kp = 7;
     float Ki = 0.0015;
@@ -3790,8 +3788,8 @@ static void HeaterPID(uint16_t maxDuty, uint16_t maxHeaterTemp){
         DerivativeError = PropoError - PreviousError ;
 
         Error = Kp*PropoError + Ki*IntegrateError + Kd*DerivativeError;
-        Log_info1("Error :%d",Error*1000);
-
+       // Log_info1("Error :%d",Error*1000);
+        Log_info1("dutyCycle :%d",dutyCycle);
         if (temp2>maxHeaterTemp){
             PWM_setDuty(PWM1, 0);
         }
@@ -3802,7 +3800,7 @@ static void HeaterPID(uint16_t maxDuty, uint16_t maxHeaterTemp){
             if (dutyCycle >= maxDuty){
                 dutyCycle = maxDuty;
             }
-            Log_info1("dutyCycle :%d",dutyCycle);
+
             //dutyValue = (uint32) (((uint64) PWM_DUTY_FRACTION_MAX * dutyCycle) / 100);
             uint64_t dutyValue = (uint32_t) (((uint64_t) PWM_DUTY_FRACTION_MAX * dutyCycle) / 100);
             PWM_setDuty(PWM1, dutyValue);
@@ -3810,6 +3808,7 @@ static void HeaterPID(uint16_t maxDuty, uint16_t maxHeaterTemp){
 
         else{
             PWM_setDuty(PWM1, 0);
+            dutyCycle = 0;
         }
         if(stopFlag==1 || mannualOperationStop==1){
              PWM_setDuty(PWM1, 0);
@@ -4649,13 +4648,13 @@ I2CTMT117(uint8_t slave){
              return temperature;
     }
     else {
-        Log_info0("No I2C transaction happen");
+       // Log_info0("No I2C transaction happen");
 
         I2C_close(i2c);
         tmp116errorcount +=1;
         if(tmp116errorcount > 5 && slave == 0x48 && (Current_Status ==3 || Current_Status == 9)){
             I2CStatusTMP116 = 2;
-            Log_error0("I2c communication failed  - Skin Temp sensor");
+           // Log_error0("I2c communication failed  - Skin Temp sensor");
             Error_Code = 35;
             Error_level = 3;
             errorFLag = 0;
@@ -4802,7 +4801,7 @@ BQ25887(){
     int8_t i;
     size_t txsize;
     uint8_t readData;
-    uint16_t bat_capacity = 2500;
+    uint16_t bat_capacity = 2600;
     uint16_t batPercentage=0;
     uint16_t lastbatPercentage=0;
     I2C_Handle i2c;
@@ -4864,14 +4863,11 @@ BQ25887(){
                 else{
                     Log_info0("status unidentified");
                 }
-
-
-
             }
             else
             {
                 Error_Code = 34;
-                Log_info0("status reading error#######################3");
+             //   Log_info0("status reading error#######################3");
             }
 
     /*Enabling ADC*/
@@ -5163,7 +5159,7 @@ float SOC(uint16_t sample_t, I2C_Handle i2c, I2C_Transaction i2cTransaction,uint
 *
 * @param   I2C Parameters
 *
-* @return  discharge
+* @return discharge
 */
 
 float DOD(uint16_t sample_t, I2C_Handle i2c, I2C_Transaction i2cTransaction,uint8_t *txBuffer, uint8_t *rxBuffer)
@@ -5171,10 +5167,14 @@ float DOD(uint16_t sample_t, I2C_Handle i2c, I2C_Transaction i2cTransaction,uint
     float busCurr = 0;
     uint16_t currentADC = 0;
     if(Current_Status == 3 || Current_Status == 9 ){
-        currentADC = scifTaskData.achButton.output.pAdcValue[1];
+        currentADC = dutyCycle *34.53 +24.65;
+
+    }
+    else{
+        currentADC = 0;
     }
     float heaterCurrentReading = currentADC * 5;
-    Log_info1("currentADC : %d ", currentADC);
+    Log_info1("currentADC_______________________________________________________ : %d ", currentADC);
    // Log_info1("Heater current ############################################# : %d (A)", heaterCurrentReading);
     busCurr += heaterCurrentReading;
     uint8_t IBUS1;
