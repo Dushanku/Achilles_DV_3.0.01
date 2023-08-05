@@ -4897,7 +4897,7 @@ BQ25887(){
         //Calculating battery percentage
         if(batCount ==1){
             soc0 = SOC_OCV(i2c, i2cTransaction, txBuffer, rxBuffer); //calculate SOC using SOC-OCV profile(while battery is at idle)
-            Log_info1("soc0 __________________________________________-: %d (%)", soc0);
+
         }
 
        //Display_printf(display, 0, 0, "soc0 =  %f",soc0);
@@ -4914,7 +4914,7 @@ BQ25887(){
        // Display_printf(display, 0, 0, "battery level =  %f",battery_level);
        lastbatPercentage = batPercentage;
        batPercentage = soc0 + (charge/bat_capacity)*100 - (discharge/bat_capacity)*100; //charge and discharge should set to zero after this.
-       batPercentage = ((batPercentage + 5) /10)*10;  //Calculate real bat percentage.
+       batPercentage = ((batPercentage + 5) /10)*10;  //Calculate real bat percentage using roundoff.
        Log_info1("bat Percentage : %d (%)", batPercentage);
        I2C_close(i2c);
        charge=0;
