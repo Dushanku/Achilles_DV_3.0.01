@@ -369,6 +369,7 @@ uint8 batteryLowFLag5 = 0;
 uint8 errorFLag = 0;
 uint8 batteryLevel = 0;
 float vBat = 0;
+float vBatRead = 0;
 //runheater
 pzCharacteristicData_t *heater01;
 uint8 runheatr[6];
@@ -3789,7 +3790,7 @@ static void HeaterPID(uint16_t maxDuty, uint16_t maxHeaterTemp){
 
         Error = Kp*PropoError + Ki*IntegrateError + Kd*DerivativeError;
        // Log_info1("Error :%d",Error*1000);
-        Log_info1("dutyCycle :%d",dutyCycle);
+       // Log_info1("dutyCycle :%d",dutyCycle);
         if (temp2>maxHeaterTemp){
             PWM_setDuty(PWM1, 0);
         }
@@ -4801,7 +4802,7 @@ BQ25887(){
     int8_t i;
     size_t txsize;
     uint8_t readData;
-    uint16_t bat_capacity = 2600;
+    uint16_t bat_capacity = 2400;
     uint16_t batPercentage=0;
     uint16_t lastbatPercentage=0;
     I2C_Handle i2c;
@@ -4896,6 +4897,7 @@ BQ25887(){
         //Calculating battery percentage
         if(batCount ==1){
             soc0 = SOC_OCV(i2c, i2cTransaction, txBuffer, rxBuffer); //calculate SOC using SOC-OCV profile(while battery is at idle)
+            Log_info1("soc0 __________________________________________-: %d (%)", soc0);
         }
 
        //Display_printf(display, 0, 0, "soc0 =  %f",soc0);
@@ -4912,6 +4914,7 @@ BQ25887(){
        // Display_printf(display, 0, 0, "battery level =  %f",battery_level);
        lastbatPercentage = batPercentage;
        batPercentage = soc0 + (charge/bat_capacity)*100 - (discharge/bat_capacity)*100; //charge and discharge should set to zero after this.
+       batPercentage = ((batPercentage + 5) /10)*10;
        Log_info1("bat Percentage : %d (%)", batPercentage);
        I2C_close(i2c);
        charge=0;
@@ -5004,38 +5007,39 @@ float SOC_OCV(I2C_Handle i2c, I2C_Transaction i2cTransaction,uint8_t *txBuffer, 
     vBat = vBat/1000;
     }
     //Display_printf(display, 0, 0, "battery voltage =  %f",vBat);
-    Log_info1("battery voltag : %d (V)", vBat*1000);
-    //calculate SOC using SOC-OCV profile
 
+    //calculate SOC using SOC-OCV profile
+    vBatRead = 1.007*vBat + 0.02840;
+    Log_info1("battery voltag __________________________________________________: %d (V)", vBatRead*1000);
     float soc0;
-    if (vBat<6.6){
+    if (vBatRead<6.5){
         soc0=0;
         //Display_printf(display, 0, 0, "Battery drained to zero");
         // Error code 45
     }
-    else if (vBat<6.9){
-        soc0=13.28*vBat - 88.6;
+    else if (vBatRead<6.9){
+        soc0=13.28*vBatRead - 88.6;
     }
-    else if (vBat<7.012){
-        soc0=62.5*vBat - 431.1;
+    else if (vBatRead<7.012){
+        soc0=62.5*vBatRead - 431.1;
     }
-    else if (vBat<7.19){
-        soc0=74.5*vBat - 516.1;
+    else if (vBatRead<7.19){
+        soc0=74.5*vBatRead - 516.1;
     }
-    else if (vBat<7.352){
-        soc0=172*vBat - 1225;
+    else if (vBatRead<7.352){
+        soc0=172*vBatRead - 1225;
     }
-    else if (vBat<7.478){
-        soc0=114.75*vBat - 800.9;
+    else if (vBatRead<7.478){
+        soc0=114.75*vBatRead - 800.9;
     }
-    else if (vBat<7.934){
-        soc0=55.95*vBat - 359.9;
+    else if (vBatRead<7.934){
+        soc0=55.95*vBatRead - 359.9;
     }
-    else if (vBat<8.078){
-        soc0=52.4*vBat - 332;
+    else if (vBatRead<8.078){
+        soc0=52.4*vBatRead - 332;
     }
-    else if (vBat<8.264){
-        soc0=(45.305*vBat) - 274.7;
+    else if (vBatRead<8.264){
+        soc0=(45.305*vBatRead) - 274.7;
     }
     else{
         soc0=100;
@@ -5167,15 +5171,15 @@ float DOD(uint16_t sample_t, I2C_Handle i2c, I2C_Transaction i2cTransaction,uint
     float busCurr = 0;
     uint16_t currentADC = 0;
     if(Current_Status == 3 || Current_Status == 9 ){
-        currentADC = dutyCycle *34.53 +24.65;
+        currentADC = scifTaskData.achButton.output.pAdcValue[1];
+       // Log_info1("currentRead_______________________________________________________ : %d ", currentADC);
 
     }
     else{
         currentADC = 0;
     }
-    float heaterCurrentReading = currentADC * 5;
-    Log_info1("currentADC_______________________________________________________ : %d ", currentADC);
-   // Log_info1("Heater current ############################################# : %d (A)", heaterCurrentReading);
+    float heaterCurrentReading = currentADC * 4.949;
+    Log_info1("heaterCurrentReading_______________________________________________________ : %d ", heaterCurrentReading);
     busCurr += heaterCurrentReading;
     uint8_t IBUS1;
     uint8_t IBUS2;
