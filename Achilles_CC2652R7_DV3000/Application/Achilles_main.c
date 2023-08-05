@@ -4914,7 +4914,7 @@ BQ25887(){
        // Display_printf(display, 0, 0, "battery level =  %f",battery_level);
        lastbatPercentage = batPercentage;
        batPercentage = soc0 + (charge/bat_capacity)*100 - (discharge/bat_capacity)*100; //charge and discharge should set to zero after this.
-       batPercentage = ((batPercentage + 5) /10)*10;
+       batPercentage = ((batPercentage + 5) /10)*10;  //Calculate real bat percentage.
        Log_info1("bat Percentage : %d (%)", batPercentage);
        I2C_close(i2c);
        charge=0;
